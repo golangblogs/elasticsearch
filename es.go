@@ -6,38 +6,8 @@ import (
 	"github.com/astaxie/beego/httplib"
 )
 
+// elasticSearch连接地址
 var esUrl string
-
-func init() {
-	//9200后面的/不要少
-	esUrl = "http://127.0.0.1:9200/"
-}
-
-// 搜索功能
-// sort []map[string]string 根据哪个字段排序 正序还是倒叙
-func EsSearch(indexName string, query map[string]interface{}, from int, size int, sort []map[string]string) HitsData {
-	searchQuery := map[string]interface{}{
-		"query": query,
-		"from":  from,
-		"size":  size,
-		"sort":  sort,
-	}
-	//httplib请求包
-	req := httplib.Post(esUrl + indexName + "/_search")
-	//searchQuery参数通过json的格式传过去
-	req.JSONBody(searchQuery)
-	//最后获取返回值
-	str, err := req.String()
-	fmt.Println(str)
-	if err != nil {
-		fmt.Println(err)
-	}
-	var stb ReqSearchData
-	//把获取的json值解析一下
-	err = json.Unmarshal([]byte(str), &stb)
-
-	return stb.Hits
-}
 
 // 解析获取到的值
 type ReqSearchData struct {
@@ -58,8 +28,41 @@ type TotalData struct {
 	Relation string
 }
 
-// 添加
-func EsAdd(indexName string, id string, body map[string]interface{}) bool {
+func init() {
+	//9200后面的/不要少
+	esUrl = "http://127.0.0.1:9200/"
+}
+
+// 搜索功能
+// sort []map[string]string 根据哪个字段排序 正序还是倒叙
+func EsSearch(indexName string, query map[string]interface{}, from int, size int, sort []map[string]string) (HitsData, error) {
+	searchQuery := map[string]interface{}{
+		"query": query,
+		"from":  from,
+		"size":  size,
+		"sort":  sort,
+	}
+	//httplib请求包
+	req := httplib.Post(esUrl + indexName + "/_search")
+	//searchQuery参数通过json的格式传过去
+	req.JSONBody(searchQuery)
+	//最后获取返回值
+	str, err := req.String()
+	var stb ReqSearchData
+	if err != nil {
+		return stb.Hits, err
+	}
+
+	//把获取的json值解析一下
+	err = json.Unmarshal([]byte(str), &stb)
+	if err != nil {
+		return stb.Hits, err
+	}
+	return stb.Hits, err
+}
+
+// EsAdd  添加
+func EsAdd(indexName string, id string, body map[string]interface{}) (bool, error) {
 	//7.x版本type已经取消了，否则会报错
 	req := httplib.Post(esUrl + indexName + "/_doc/" + id)
 
@@ -67,16 +70,15 @@ func EsAdd(indexName string, id string, body map[string]interface{}) bool {
 	req.JSONBody(body)
 
 	//最后获取返回值
-	str, err := req.String()
+	_, err := req.String()
 	if err != nil {
-		fmt.Println(err)
+		return false, err
 	}
-	fmt.Println(">>>>>>>>>>>" + str)
-	return true
+	return true, nil
 }
 
-// 修改
-func EsEdit(indexName string, id string, body map[string]interface{}) bool {
+// EsEdit 修改
+func EsEdit(indexName string, id string, body map[string]interface{}) (bool, error) {
 
 	bodyData := map[string]interface{}{
 		//要把修改的内容放到doc中
@@ -87,22 +89,51 @@ func EsEdit(indexName string, id string, body map[string]interface{}) bool {
 	req := httplib.Post(esUrl + indexName + "/_doc/" + id + "/_update")
 	req.JSONBody(bodyData)
 
-	str, err := req.String()
+	//最后获取返回值
+	_, err := req.String()
 	if err != nil {
-		fmt.Println(err)
+		return false, err
 	}
-	fmt.Println(str)
-	return true
+	return true, nil
 }
 
-// 删除
-func EsDelete(indexName string, id string) bool {
+// EsDelete 删除
+func EsDelete(indexName string, id string) (bool, error) {
 	req := httplib.Delete(esUrl + indexName + "/_doc/" + id)
 	//最后获取返回值
-	str, err := req.String()
+	_, err := req.String()
 	if err != nil {
-		fmt.Println(err)
+		return false, err
 	}
-	fmt.Println(str)
-	return true
+	return true, nil
+}
+
+// EsBulkAdd 实现批量添加数据
+func EsBulkAdd(indexName string, data []interface{}) (bool, error) {
+	//httplib请求包
+	req := httplib.Post(esUrl + indexName + "/_bulk")
+	// 设置请求头Content-Type
+	req.Header("Content-Type", "application/x-ndjson")
+
+	//参数通过json的格式传过去
+	var bulkData string
+
+	for _, item := range data {
+		//这段代码首先尝试将每个数据项序列化为 JSON 字符串。如果序列化过程有误，它将跳过该数据项并继续处理其它数据
+		itemJSON, err := json.Marshal(item)
+		if err != nil {
+			fmt.Printf("Error marshaling data item: %s\n", err)
+			continue
+		}
+		bulkData += fmt.Sprintf("{\"index\":{}}\n%s\n", string(itemJSON))
+	}
+
+	req.Body([]byte(bulkData))
+
+	//req.String()这个不能少
+	_, err := req.String()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
