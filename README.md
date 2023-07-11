@@ -4,6 +4,16 @@
 go get github.com/golangblogs/elasticsearch
 ```
 
+# Example EsConn
+
+```go
+    import "github.com/golangblogs/elasticsearch"
+
+    // 如果不想用默认的链接地址和端口号，请先调用该方法
+	//如果不调用该方法，默认是127.0.0.1  9200
+    elasticsearch.EsConfig("10.2.227.115", 9200)
+```
+
 # Example EsBulkAdd
 
 ```go
