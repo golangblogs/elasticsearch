@@ -67,6 +67,7 @@ func (this *EsDemoController) EsSearch() {
 			"must": []map[string]interface{}{
 				map[string]interface{}{
 					"match": map[string]interface{}{
+						//搜索条件 title换成自己的搜索条件
 						"title": title,
 					},
 				},
@@ -74,8 +75,9 @@ func (this *EsDemoController) EsSearch() {
 		},
 	}
 
-	//排序条件
+	//排序条件 我这一快默认写了id 倒叙排列，如果没有id则检索不出数据
 	sort := []map[string]string{map[string]string{"id": "desc"}}
+	//index_name 索引名字
 	res := elasticsearch.EsSearch("index_name", query, from, size, sort)
 	//转结构体
 	//符合搜索条件总条数
