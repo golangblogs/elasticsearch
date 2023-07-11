@@ -7,7 +7,8 @@ import (
 )
 
 // elasticSearch连接地址
-var esUrl string
+// 9200后面的/不要少
+var esUrl = "http://127.0.0.1:9200/"
 
 // 解析获取到的值
 type ReqSearchData struct {
@@ -28,9 +29,9 @@ type TotalData struct {
 	Relation string
 }
 
-func init() {
-	//9200后面的/不要少
-	esUrl = "http://127.0.0.1:9200/"
+// 如果不想用默认的链接地址和端口号，请先调用该方法
+func EsConfig(host string, port int) {
+	esUrl = fmt.Sprintf("http://%s:%d/", host, port)
 }
 
 // 搜索功能
@@ -55,9 +56,6 @@ func EsSearch(indexName string, query map[string]interface{}, from int, size int
 
 	//把获取的json值解析一下
 	err = json.Unmarshal([]byte(str), &stb)
-	if err != nil {
-		return stb.Hits, err
-	}
 	return stb.Hits, err
 }
 
